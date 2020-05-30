@@ -6,8 +6,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QTextBrowser, QMenu, QAction, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QCheckBox)
 from PyQt5.QtGui import QPixmap, QCursor
-from PyQt5.QtCore import Qt, QUrl
-from PyQt5.QtWebEngineWidgets import *
+from PyQt5.QtCore import Qt
 from PyWeChatSpy import WeChatSpy
 import requests
 import sys
@@ -20,6 +19,11 @@ def download_image(url, output):
             wf.write(resp.content)
         return True
     return False
+
+
+class ContactUI(QWidget):
+    def __init__(self):
+        super().__init__()
 
 
 class SpyUI(QWidget):
@@ -61,10 +65,6 @@ class SpyUI(QWidget):
         self.label_wxid.setFixedWidth(200)
         self.label_wxid.move(132, 88)
         # 联系人列表
-        # browser = QWebEngineView(self)
-        # browser.load(QUrl("http://www.baidu.com"))
-        # browser.setFixedSize(200,300)
-        # browser.move(100, 100)
         cb_select_all = QCheckBox("全选(selectAll)")
         cb_select_all.stateChanged[int].connect(self.select_all_contact)  #
         item = QListWidgetItem(self.lw_contact)
