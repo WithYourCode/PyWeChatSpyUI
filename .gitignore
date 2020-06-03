@@ -135,3 +135,5 @@ dmypy.json
 *.jpg
 *.png
 *.gif
+*.xor
+!default.jpg
