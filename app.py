@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import (
     QDesktopWidget,
     QPushButton,
     QLabel,
-    QTextBrowser,
     QTabWidget,
     QMenu, QAction, QTextEdit, QFileDialog, QListWidget, QListWidgetItem, QCheckBox)
 from PyQt5.QtGui import QPixmap, QCursor
@@ -18,11 +17,14 @@ import sys
 from queue import Queue
 from time import sleep
 from threading import Thread
+import os
 
 
 FRIEND_LIST = []
 GROUP_LIST = []
 cb_contact_list = []
+contact_need_details = []
+current_row = 0
 msg_queue = Queue()
 wxid_contact = {}
 contact_filter = ("qmessage", "qqmail", "tmessage", "medianote", "floatbottle", "fmessage")
@@ -68,7 +70,10 @@ class ContactWidget(QWidget):
         layout.addWidget(checkbox_contact)
         label_profilephoto = QLabel(self)
         label_profilephoto.setFixedSize(32, 32)
-        default_profilephoto = QPixmap("default.jpg").scaled(32, 32)
+        profilephoto_path = "profilephotos/default.jpg"
+        if os.path.exists(f"profilephotos/{contact['wxid']}.jpg"):
+            profilephoto_path = f"profilephotos/{contact['wxid']}.jpg"
+        default_profilephoto = QPixmap(profilephoto_path).scaled(32, 32)
         label_profilephoto.setPixmap(default_profilephoto)
         layout.addWidget(label_profilephoto)
         label_nickname = QLabel(self)
@@ -79,6 +84,75 @@ class ContactWidget(QWidget):
             nickname = f"{nickname}[{count}]"
         label_nickname.setText(nickname)
         layout.addWidget(label_nickname)
+
+
+class ContactSearchWidget(QWidget):
+    def __init__(self, contact: dict):
+        super().__init__()
+        layout = QHBoxLayout(self)
+        label_profilephoto = QLabel(self)
+        label_profilephoto.setFixedSize(32, 32)
+        profilephoto_path = "profilephotos/default.jpg"
+        if os.path.exists(f"profilephotos/{contact['wxid']}.jpg"):
+            profilephoto_path = f"profilephotos/{contact['wxid']}.jpg"
+        default_profilephoto = QPixmap(profilephoto_path).scaled(32, 32)
+        label_profilephoto.setPixmap(default_profilephoto)
+        layout.addWidget(label_profilephoto)
+        label_nickname = QLabel(self)
+        nickname = contact["nickname"]
+        if remark := contact.get("remark"):
+            nickname = f"{nickname}({remark})"
+        if count := contact.get("member_count"):
+            nickname = f"{nickname}[{count}]"
+        label_nickname.setText(nickname)
+        layout.addWidget(label_nickname)
+
+
+class MessageWidget(QWidget):
+    def __init__(self, message: dict):
+        super().__init__()
+        layout_main = QHBoxLayout(self)
+        layout_side = QVBoxLayout(self)
+        label_content = QLabel(self)
+        label_content.setWordWrap(True)
+        label_content.adjustSize()
+        label_speaker = QLabel(self)
+        if message["self"]:
+            layout_main.setAlignment(Qt.AlignRight)
+            layout_side.setAlignment(Qt.AlignRight)
+            label_content.setAlignment(Qt.AlignRight)
+            label_speaker.setAlignment(Qt.AlignRight)
+        # else:
+        #     layout_main.setAlignment(Qt.AlignLeft)
+        #     layout_side.setAlignment(Qt.AlignLeft)
+        #     label_content.setAlignment(Qt.AlignLeft)
+        #     label_speaker.setAlignment(Qt.AlignLeft)
+        label_profilephoto = QLabel(self)
+        label_profilephoto.setFixedSize(32, 32)
+        profilephoto_path = "profilephotos/default.jpg"
+        if os.path.exists(f"profilephotos/{message['wxid1']}.jpg"):
+            profilephoto_path = f"profilephotos/{message['wxid1']}.jpg"
+        default_profilephoto = QPixmap(profilephoto_path).scaled(32, 32)
+        label_profilephoto.setPixmap(default_profilephoto)
+        speaker = ""
+        wxid1 = message["wxid1"]
+        if contact := wxid_contact.get(wxid1):
+            speaker = contact["nickname"]
+            if remark := contact.get("remark"):
+                speaker = f"{speaker}({remark})"
+        label_speaker.setText(speaker)
+        layout_side.addWidget(label_speaker)
+        if message["msg_type"] == 1:
+            label_content.setText(message["content"])
+        else:
+            label_content.setText("不支持的消息类型，请在手机上查看")
+        layout_side.addWidget(label_content)
+        if message["self"]:
+            layout_main.addLayout(layout_side)
+            layout_main.addWidget(label_profilephoto)
+        else:
+            layout_main.addWidget(label_profilephoto)
+            layout_main.addLayout(layout_side)
 
 
 class SpyUI(QWidget):
@@ -94,11 +168,11 @@ class SpyUI(QWidget):
         self.layout_main.addLayout(self.layout_right)
         self.label_profilephoto = QLabel(self)
         self.TE_contact_search = QTextEdit(self)
+        self.LW_contact_search = QListWidget(self)
         self.TW_contact = QTabWidget(self)
         self.tab_friend = QListWidget()
         self.tab_group = QListWidget()
-        # self.LW_contact_list = QListWidget(self)
-        self.TB_chat = QTextBrowser(self)
+        self.LW_chat_record = QListWidget(self)
         self.TE_send = QTextEdit(self)
         self.CB_select_all_contact = QCheckBox("全选")
         self.CB_select_all_contact.setCheckState(Qt.Unchecked)
@@ -111,10 +185,10 @@ class SpyUI(QWidget):
         center = QDesktopWidget().availableGeometry().center()
         fg.moveCenter(center)
         self.move(fg.topLeft())
-        self.setWindowTitle("PyWeChatSpyUI Beta 1.1.0")
+        self.setWindowTitle("PyWeChatSpyUI Beta 1.2.0")
         # 设置登录信息头像
         self.label_profilephoto.setFixedSize(32, 32)
-        default_profilephoto = QPixmap("default.jpg").scaled(32, 32)
+        default_profilephoto = QPixmap("profilephotos/default.jpg").scaled(32, 32)
         self.label_profilephoto.setPixmap(default_profilephoto)
         self.layout_left.addWidget(self.label_profilephoto)
         button_open_wechat = QPushButton(self)
@@ -126,26 +200,27 @@ class SpyUI(QWidget):
         self.TW_contact.currentChanged["int"].connect(self.tab_changed)
         self.TW_contact.addTab(self.tab_friend, "好友")
         self.TW_contact.addTab(self.tab_group, "群聊")
+        self.tab_friend.itemClicked.connect(self.contact_clicked)
+        self.tab_group.itemClicked.connect(self.contact_clicked)
         self.TE_contact_search.setFixedSize(250, 24)
         self.TE_contact_search.textChanged.connect(self.search_contact)
         self.TE_contact_search.setPlaceholderText("搜索")
+        self.LW_contact_search.setFixedSize(250, 200)
+        self.LW_contact_search.itemClicked.connect(self.contact_search_clicked)
         self.layout_middle.addWidget(self.TE_contact_search)
         self.CB_select_all_contact.stateChanged[int].connect(self.contact_select_all)
         self.layout_middle.addWidget(self.CB_select_all_contact)
-        # self.LW_contact_list.setFixedSize(250, 500)
-        # self.layout_middle.addWidget(self.LW_contact_list)
         self.layout_middle.addWidget(self.TW_contact)
         # 聊天区域
-        self.TB_chat.setFixedSize(468, 300)
-        self.layout_right.addWidget(self.TB_chat)
-        # self.TB_chat.move(0, 0)
+        self.LW_chat_record.setFixedSize(468, 400)
+        self.layout_right.addWidget(self.LW_chat_record)
         layout = QHBoxLayout(self)
         button_file = QPushButton(self)
         button_file.setText("添加文件")
         button_file.clicked.connect(self.insert_file)
         layout.addWidget(button_file)
         self.layout_right.addLayout(layout)
-        self.TE_send.setFixedSize(468, 200)
+        self.TE_send.setFixedSize(468, 100)
         self.layout_right.addWidget(self.TE_send)
         button_send = QPushButton(self)
         button_send.setText("发送")
@@ -156,6 +231,9 @@ class SpyUI(QWidget):
         msg_thread.signal.connect(self.parser)
         msg_thread.start()
         self.show()
+        self.LW_contact_search.raise_()
+        self.LW_contact_search.move(self.TE_contact_search.x(), self.TE_contact_search.y() + 24)
+        self.LW_contact_search.hide()
 
     def parser(self, data):
         _type = data.pop("type")
@@ -164,59 +242,76 @@ class SpyUI(QWidget):
             # self.label_nickname.setText(data["nickname"])
             # self.label_wechatid.setText(data["wechatid"])
             # self.label_wxid.setText(data["wxid"])
-            if download_image(data["profilephoto_url"], "image.jpg"):
-                profilephoto = QPixmap("image.jpg").scaled(32, 32)
-                self.label_profilephoto.setPixmap(profilephoto)
+            profilephoto_path = f"profilephotos/{data['wxid']}.jpg"
+            if not os.path.exists(profilephoto_path):
+                if not download_image(data["profilephoto_url"], profilephoto_path):
+                    profilephoto_path = "profilephotos/default.jpg"
+            profilephoto = QPixmap(profilephoto_path).scaled(32, 32)
+            self.label_profilephoto.setPixmap(profilephoto)
             self.spy.query_contact_list()
+        elif _type == 2:
+            if profilephoto_url := data.get("profilephoto_url"):
+                download_image(profilephoto_url, f"profilephotos/{data['wxid']}.jpg")
+            if contact_need_details:
+                wxid = contact_need_details.pop()
+                self.spy.query_contact_details(wxid)
+            else:
+                self.refresh_contact_list()
         elif _type == 3:
             for contact in data["data"]:
                 wxid_contact[contact["wxid"]] = contact
                 if (not contact["wxid"].startswith("gh_")) and (contact["wxid"] not in contact_filter):
+                    if not os.path.exists(f"profilephotos/{contact['wxid']}.jpg"):
+                        contact_need_details.append(contact["wxid"])
                     if contact["wxid"].endswith("chatroom"):
                         GROUP_LIST.append(contact)
                     else:
                         FRIEND_LIST.append(contact)
             if data["total_page"] == data["current_page"]:
-                self.refresh_contact_list([])
+                self.refresh_contact_list()
+                if contact_need_details:
+                    wxid = contact_need_details.pop()
+                    self.spy.query_contact_details(wxid)
         elif _type == 5:
             # 聊天消息
             for msg in data["data"]:
-                speaker = ""
-                wxid = msg.get("wxid1")
-                if contact := wxid_contact.get(wxid):
-                    speaker = contact["nickname"]
-                    if remark := contact.get("remark"):
-                        speaker = f"{speaker}({remark})"
-                if msg["msg_type"] == 1:
-                    self.TB_chat.append(f"{speaker}:{msg['content']}")
-                    self.TB_chat.moveCursor(self.TB_chat.textCursor().End)
+                widget = MessageWidget(msg)
+                item = QListWidgetItem()
+                item.setSizeHint(QSize(234, 65))
+                self.LW_chat_record.addItem(item)
+                self.LW_chat_record.setItemWidget(item, widget)
+                self.LW_chat_record.setCurrentRow(self.LW_chat_record.count() - 1)
 
-    def refresh_contact_list(self, _contact_list):
+    def refresh_contact_list(self):
         cb_contact_list.clear()
         if self.TW_contact.currentIndex() == 0:
             self.tab_friend.clear()
-            if not _contact_list:
-                _contact_list = FRIEND_LIST
+            _contact_list = FRIEND_LIST
         else:
             self.tab_group.clear()
-            if not _contact_list:
-                _contact_list = GROUP_LIST
-        for contact in _contact_list:
+            _contact_list = GROUP_LIST
+        for i, contact in enumerate(_contact_list):
             widget = ContactWidget(contact, self.contact_select_changed)
             item = QListWidgetItem()
             item.setSizeHint(QSize(200, 50))
+            item.__setattr__("wxid", contact["wxid"])
+            item.__setattr__("row", i)
             if self.TW_contact.currentIndex() == 0:
                 self.tab_friend.addItem(item)
                 self.tab_friend.setItemWidget(item, widget)
             else:
                 self.tab_group.addItem(item)
                 self.tab_group.setItemWidget(item, widget)
+        if current_row:
+            if self.TW_contact.currentIndex() == 0:
+                self.tab_friend.setCurrentRow(current_row)
+            else:
+                self.tab_group.setCurrentRow(current_row)
 
     def tab_changed(self, index):
         self.TE_contact_search.clear()
         self.CB_select_all_contact.setCheckState(Qt.Unchecked)
-        self.refresh_contact_list([])
-        
+        self.refresh_contact_list()
 
     def rightMenuShow(self):
         menu = QMenu(self)
@@ -305,25 +400,53 @@ class SpyUI(QWidget):
     def search_contact(self):
         search_key = self.TE_contact_search.toPlainText()
         if search_key:
-            _list = []
             if self.TW_contact.currentIndex() == 0:
                 _contact_list = FRIEND_LIST
             else:
                 _contact_list = GROUP_LIST
+            _list = []
             for contact in _contact_list:
                 if search_key in contact["nickname"]:
                     _list.append(contact)
                 elif remark := contact.get("remark"):
                     if search_key in remark:
                         _list.append(contact)
-            self.refresh_contact_list(_list)
-        else:
-            if self.TW_contact.currentIndex() == 0:
-                if self.tab_friend.count() != len(FRIEND_LIST):
-                    self.refresh_contact_list([])
+            self.LW_contact_search.clear()
+            if _list:
+                for contact in _list:
+                    widget = ContactSearchWidget(contact)
+                    item = QListWidgetItem()
+                    item.setSizeHint(QSize(200, 50))
+                    item.__setattr__("wxid", contact["wxid"])
+                    self.LW_contact_search.addItem(item)
+                    self.LW_contact_search.setItemWidget(item, widget)
+                self.LW_contact_search.show()
+                _list.clear()
             else:
-                if self.tab_group.count() != len(GROUP_LIST):
-                    self.refresh_contact_list([])
+                self.LW_contact_search.hide()
+        else:
+            self.LW_contact_search.hide()
+
+    def contact_clicked(self, item: QListWidgetItem):
+        global current_row
+        current_row = item.row
+        self.spy.query_contact_details(item.wxid)
+
+    def contact_search_clicked(self, item: QListWidgetItem):
+        if self.TW_contact.currentIndex() == 0:
+            for i in range(self.tab_friend.count()):
+                _item = self.tab_friend.item(i)
+                if item.wxid == _item.wxid:
+                    self.tab_friend.setCurrentRow(i)
+                    break
+        else:
+            for i in range(self.tab_group.count()):
+                _item = self.tab_group.item(i)
+                if item.wxid == _item.wxid:
+                    self.tab_group.setCurrentRow(i)
+                    break
+        self.LW_contact_search.hide()
+        self.LW_contact_search.clear()
 
 
 if __name__ == '__main__':
