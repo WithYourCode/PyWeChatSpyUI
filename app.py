@@ -159,6 +159,7 @@ class MessageWidget(QWidget):
 class SettingWidget(QWidget):
     def __init__(self, parent):
         super().__init__()
+        self.setWindowTitle("设置")
         self.parent = parent
         self.tab_widget = QTabWidget(self)
         self.tab_widget.setTabPosition(QTabWidget.West)
@@ -223,7 +224,7 @@ class SpyUI(QWidget):
         # 主窗体
         self.resize(858, 608)
         self.move(fg.topLeft())
-        self.setWindowTitle("PyWeChatSpyUI Beta 1.3.0")
+        self.setWindowTitle("PyWeChatSpyUI Beta 1.3.1")
         # 设置登录信息头像
         self.label_profilephoto.setFixedSize(32, 32)
         default_profilephoto = QPixmap("profilephotos/default.jpg").scaled(32, 32)
@@ -394,6 +395,10 @@ class SpyUI(QWidget):
 
     def send_msg(self):
         content_html = self.TE_send.toHtml()
+        content_html = re.sub("<span.*?>", "", content_html)
+        content_html = re.sub("</span>", "", content_html)
+        content_html = re.sub("<a.*?>", "", content_html)
+        content_html = re.sub("</a>", "", content_html)
         content_etree = etree.HTML(content_html)
         lines = content_etree.xpath("//p")
         msg_list = []
