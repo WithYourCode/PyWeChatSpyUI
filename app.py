@@ -32,7 +32,7 @@ wxid_contact = {}
 contact_filter = ("qmessage", "qqmail", "tmessage", "medianote", "floatbottle", "fmessage")
 
 
-def parser(data):
+def parser(data: dict):
     msg_queue.put(data)
 
 
@@ -51,7 +51,7 @@ class MsgThread(QThread):
                 sleep(0.1)
 
 
-def download_image(url, output):
+def download_image(url: str, output: str):
     resp = requests.get(url)
     if resp.status_code == 200:
         with open(output, "wb") as wf:
@@ -190,7 +190,7 @@ class SendTextEdit(QTextEdit):
 class SpyUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.spy = WeChatSpy(parser=parser)
+        self.spy = WeChatSpy(parser=parser, key="18d421169d93611a5584affac335e690")
         self.layout_main = QHBoxLayout(self)
         self.layout_left = QVBoxLayout(self)
         self.layout_middle = QVBoxLayout(self)
@@ -224,7 +224,7 @@ class SpyUI(QWidget):
         # 主窗体
         self.resize(858, 608)
         self.move(fg.topLeft())
-        self.setWindowTitle("PyWeChatSpyUI Beta 1.3.1")
+        self.setWindowTitle("PyWeChatSpyUI Beta 1.3.2")
         # 设置登录信息头像
         self.label_profilephoto.setFixedSize(32, 32)
         default_profilephoto = QPixmap("profilephotos/default.jpg").scaled(32, 32)
@@ -283,7 +283,7 @@ class SpyUI(QWidget):
         self.LW_contact_search.move(self.TE_contact_search.x(), self.TE_contact_search.y() + 24)
         self.LW_contact_search.hide()
 
-    def parser(self, data):
+    def parser(self, data: dict):
         _type = data.pop("type")
         if _type == 1:
             # 登录成功
@@ -377,7 +377,7 @@ class SpyUI(QWidget):
             else:
                 self.tab_office.setCurrentRow(current_row)
 
-    def tab_changed(self, index):
+    def tab_changed(self, index: int):
         self.TE_contact_search.clear()
         self.CB_select_all_contact.setCheckState(Qt.Unchecked)
         self.refresh_contact_list()
@@ -436,7 +436,7 @@ class SpyUI(QWidget):
         t.start()
         self.TE_send.clear()
 
-    def contact_select_all(self, state):
+    def contact_select_all(self, state: int):
         if state == 2:
             for cb in cb_contact_list:
                 cb.setCheckState(2)
