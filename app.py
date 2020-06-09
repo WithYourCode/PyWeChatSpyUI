@@ -145,6 +145,17 @@ class MessageWidget(QWidget):
         layout_side.addWidget(label_speaker)
         if message["msg_type"] == 1:
             label_content.setText(message["content"])
+        elif message["msg_type"] == 3:
+            label_content.setText("图片消息，请在手机上查看")
+        elif message["msg_type"] == 43:
+            if message.get("content"):
+                label_content.setText("不支持的消息类型，请在手机上查看")
+            else:
+                label_content.setText("视频消息，请在手机上查看")
+        elif message["msg_type"] == 47:
+            label_content.setText("表情包消息，请在手机上查看")
+        elif message["msg_type"] == 49:
+            label_content.setText("小程序或其他分享消息，请在手机上查看")
         else:
             label_content.setText("不支持的消息类型，请在手机上查看")
         layout_side.addWidget(label_content)
@@ -224,7 +235,7 @@ class SpyUI(QWidget):
         # 主窗体
         self.resize(858, 608)
         self.move(fg.topLeft())
-        self.setWindowTitle("PyWeChatSpyUI Beta 1.3.2")
+        self.setWindowTitle("PyWeChatSpyUI Beta 1.3.3")
         # 设置登录信息头像
         self.label_profilephoto.setFixedSize(32, 32)
         default_profilephoto = QPixmap("profilephotos/default.jpg").scaled(32, 32)
