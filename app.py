@@ -30,6 +30,10 @@ current_row = 0
 msg_queue = Queue()
 wxid_contact = {}
 contact_filter = ("qmessage", "qqmail", "tmessage", "medianote", "floatbottle", "fmessage")
+key = "18d421169d93611a5584affac335e690"
+if os.path.exists("key"):
+    with open("key", "r") as rf:
+        key = rf.read()
 
 
 def parser(data: dict):
@@ -201,7 +205,7 @@ class SendTextEdit(QTextEdit):
 class SpyUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.spy = WeChatSpy(parser=parser, key="18d421169d93611a5584affac335e690")
+        self.spy = WeChatSpy(parser=parser, key=key)
         self.layout_main = QHBoxLayout(self)
         self.layout_left = QVBoxLayout(self)
         self.layout_middle = QVBoxLayout(self)
